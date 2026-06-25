@@ -1,0 +1,1767 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ウォーターPPP・群マネ 実施/検討マップ</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQkEC2pVTdSpPwkTs4R4JkMlfdU7pDQ=" crossorigin="">
+  <style>
+    :root {
+      --ink: #172026;
+      --muted: #63717d;
+      --line: #d9e3e7;
+      --paper: #f5f7f6;
+      --panel: #ffffff;
+      --water: #0877a9;
+      --group: #b4541b;
+      --concession: #0f6b8f;
+      --management: #6b6f18;
+      --gunmane: #9b4b1f;
+      --active: #107047;
+      --open: #8c4cbd;
+      --plan: #806200;
+      --shadow: 0 14px 36px rgba(29, 45, 57, .16);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", Meiryo, system-ui, sans-serif;
+      letter-spacing: 0;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 380px minmax(0, 1fr);
+      height: 100vh;
+      min-height: 620px;
+      overflow: hidden;
+    }
+
+    aside {
+      position: relative;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: 18px;
+      min-height: 0;
+      overflow: hidden;
+      border-right: 1px solid var(--line);
+      background: rgba(255, 255, 255, .96);
+      box-shadow: 8px 0 24px rgba(33, 49, 59, .07);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 21px;
+      line-height: 1.35;
+      font-weight: 800;
+    }
+
+    .sub {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .filter-block {
+      display: grid;
+      gap: 7px;
+    }
+
+    .filter-caption {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .toggle {
+      flex: 1 1 160px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .toggle input { accent-color: var(--active); }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      flex: 0 0 auto;
+    }
+    .dot.water { background: var(--water); }
+    .dot.group { background: var(--group); }
+    .dot.concession { background: var(--concession); }
+    .dot.management { background: var(--management); }
+    .dot.gunmane { background: var(--gunmane); }
+
+    .search {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 12px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .search span {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .search input {
+      width: 100%;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      font: inherit;
+      background: transparent;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .stat {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .latest {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .latest-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .latest-head strong {
+      font-size: 13px;
+    }
+
+    .latest-head span {
+      color: var(--muted);
+      font-size: 11px;
+      text-align: right;
+    }
+
+    .latest-feed {
+      display: grid;
+      gap: 7px;
+      max-height: 150px;
+      overflow: auto;
+    }
+
+    .latest-feed a,
+    .latest-feed .latest-empty {
+      display: grid;
+      gap: 3px;
+      padding: 8px;
+      border: 1px solid #edf2f3;
+      border-radius: 8px;
+      color: var(--ink);
+      text-decoration: none;
+      background: #f9fbfb;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .latest-feed a:hover { border-color: #93b5bb; }
+    .latest-feed small { color: var(--muted); }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .item {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-left-width: 5px;
+      border-radius: 8px;
+      background: #fff;
+      padding: 12px;
+      text-align: left;
+      cursor: pointer;
+      transition: box-shadow .15s, transform .15s;
+    }
+
+    .item.water { border-left-color: var(--water); }
+    .item.group { border-left-color: var(--group); }
+    .item:hover, .item.selected {
+      box-shadow: 0 8px 18px rgba(31, 46, 54, .12);
+      transform: translateY(-1px);
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge.active { color: var(--active); background: #dff5e9; }
+    .badge.open { color: var(--open); background: #f1e5fb; }
+    .badge.plan { color: var(--plan); background: #fff4bf; }
+    .badge.source { color: #26526c; background: #e4f3fa; }
+    .badge.watch { color: #6b5b16; background: #fff5c7; }
+    .badge.concession { color: var(--concession); background: #e1f2f7; }
+    .badge.management { color: var(--management); background: #f0f4cf; }
+    .badge.gunmane { color: var(--gunmane); background: #f8e6da; }
+
+    .item h2 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.4;
+    }
+
+    .item p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    main {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      background: #dfe9e9;
+    }
+
+    #map {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+
+    .leaflet-container {
+      overflow: hidden;
+      background: #dfe9e9;
+      outline-offset: 1px;
+    }
+
+    .leaflet-pane,
+    .leaflet-tile,
+    .leaflet-marker-icon,
+    .leaflet-marker-shadow,
+    .leaflet-tile-container,
+    .leaflet-pane > svg,
+    .leaflet-pane > canvas,
+    .leaflet-zoom-box,
+    .leaflet-image-layer,
+    .leaflet-layer {
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+
+    .leaflet-tile,
+    .leaflet-marker-icon,
+    .leaflet-marker-shadow {
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .leaflet-marker-icon,
+    .leaflet-marker-shadow {
+      display: block;
+    }
+
+    .leaflet-control {
+      position: relative;
+      z-index: 800;
+      pointer-events: auto;
+    }
+
+    .leaflet-top,
+    .leaflet-bottom {
+      position: absolute;
+      z-index: 1000;
+      pointer-events: none;
+    }
+
+    .leaflet-top { top: 0; }
+    .leaflet-right { right: 0; }
+    .leaflet-bottom { bottom: 0; }
+    .leaflet-left { left: 0; }
+
+    .leaflet-control-zoom {
+      margin-top: 82px;
+      margin-left: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 8px 22px rgba(38, 55, 61, .08);
+    }
+
+    .leaflet-control-zoom a {
+      display: block;
+      width: 34px;
+      height: 34px;
+      line-height: 34px;
+      background: #fff;
+      color: var(--ink);
+      text-align: center;
+      text-decoration: none;
+      font-size: 20px;
+      font-weight: 800;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .leaflet-control-zoom a:last-child { border-bottom: 0; }
+
+    .leaflet-popup {
+      position: absolute;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .leaflet-popup-content-wrapper {
+      padding: 1px;
+      text-align: left;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 7px 24px rgba(0,0,0,.2);
+    }
+
+    .leaflet-popup-tip-container {
+      width: 40px;
+      height: 20px;
+      position: absolute;
+      left: 50%;
+      margin-left: -20px;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .leaflet-popup-tip {
+      width: 14px;
+      height: 14px;
+      padding: 1px;
+      margin: -7px auto 0;
+      transform: rotate(45deg);
+      background: #fff;
+      box-shadow: 0 7px 24px rgba(0,0,0,.2);
+    }
+
+    .map-head {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .update {
+      max-width: 590px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,.9);
+      border-radius: 8px;
+      background: rgba(255,255,255,.9);
+      box-shadow: 0 8px 22px rgba(38, 55, 61, .08);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .update strong { color: var(--active); }
+
+    .map-actions {
+      display: flex;
+      gap: 6px;
+      pointer-events: auto;
+    }
+
+    .map-actions button {
+      min-width: 72px;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 8px 22px rgba(38, 55, 61, .08);
+    }
+
+    .detail {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      z-index: 10;
+      width: min(460px, calc(100vw - 40px));
+      max-height: calc(100vh - 118px);
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,.97);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .detail h2 {
+      margin: 8px 0 8px;
+      font-size: 20px;
+      line-height: 1.35;
+    }
+
+    .detail p {
+      color: var(--muted);
+      line-height: 1.65;
+      margin: 0 0 12px;
+      font-size: 14px;
+    }
+
+    .detail dl {
+      display: grid;
+      grid-template-columns: 126px 1fr;
+      gap: 8px 12px;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+
+    .detail dt { color: var(--muted); }
+    .detail dd { margin: 0; font-weight: 700; }
+
+    .sources {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .sources a {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      text-decoration: none;
+      background: #fff;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .sources .source-note {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      background: #f8faf9;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .sources a:hover { border-color: #93b5bb; }
+
+    .pin {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #fff;
+      border-radius: 999px;
+      box-shadow: 0 5px 14px rgba(0,0,0,.32);
+    }
+
+    .pin.water { background: var(--water); }
+    .pin.group { background: var(--group); }
+    .pin.open { outline: 3px solid rgba(140, 76, 189, .34); }
+    .pin.plan { outline: 3px solid rgba(128, 98, 0, .32); }
+    .pin::after {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #fff;
+    }
+
+    .leaflet-popup-content {
+      min-width: 240px;
+      margin: 12px;
+      font-family: "Yu Gothic UI", "Hiragino Kaku Gothic ProN", Meiryo, system-ui, sans-serif;
+    }
+
+    .popup-kind {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .popup-title {
+      margin: 4px 0 6px;
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .popup-row {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 5px 8px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .popup-row span:nth-child(odd) { color: var(--muted); }
+    .popup-row span:nth-child(even) { font-weight: 700; }
+
+    .empty {
+      display: grid;
+      place-items: center;
+      height: 100%;
+      min-height: 160px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .leaflet-control-attribution {
+      font-size: 10px;
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(260px, 45vh) minmax(590px, 1fr);
+        height: 100vh;
+      }
+      aside {
+        max-height: none;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .detail {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        width: auto;
+        max-height: 40vh;
+      }
+      .map-head {
+        top: 10px;
+        left: 10px;
+        right: 10px;
+      }
+      .update { max-width: calc(100% - 90px); }
+      .map-actions button {
+        min-width: 58px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <header>
+        <h1>ウォーターPPP・群マネ 実施/検討マップ</h1>
+        <p class="sub">実施中・公募中・検討/準備中の案件を、実座標の地図上で確認できます。断定できない案件は「継続確認」として区別しています。</p>
+      </header>
+
+      <div class="filter-block">
+        <span class="filter-caption">分類</span>
+        <div class="toolbar" aria-label="表示フィルター">
+          <label class="toggle"><input id="filterWater" type="checkbox" checked><span class="dot water"></span>ウォーターPPP</label>
+          <label class="toggle"><input id="filterGroup" type="checkbox" checked><span class="dot group"></span>群マネ</label>
+        </div>
+      </div>
+
+      <div class="filter-block">
+        <span class="filter-caption">方式</span>
+        <div class="toolbar" aria-label="方式フィルター">
+          <label class="toggle"><input id="filterConcession" type="checkbox" checked><span class="dot concession"></span>コンセッション</label>
+          <label class="toggle"><input id="filterManagement" type="checkbox" checked><span class="dot management"></span>管理・更新一体</label>
+          <label class="toggle"><input id="filterGunmane" type="checkbox" checked><span class="dot gunmane"></span>群マネ/包括管理</label>
+        </div>
+      </div>
+
+      <label class="search" aria-label="地域や内容で検索">
+        <span>検索</span>
+        <input id="search" type="search" placeholder="自治体名、方式、内容、ステータス">
+      </label>
+
+      <div class="stats" aria-label="表示件数">
+        <div class="stat"><strong id="countAll">0</strong><span>表示中</span></div>
+        <div class="stat"><strong id="countOpen">0</strong><span>実施/選定</span></div>
+        <div class="stat"><strong id="countPlan">0</strong><span>制度/準備</span></div>
+      </div>
+
+      <section class="latest" aria-label="自動収集された最新情報">
+        <div class="latest-head">
+          <strong>最新情報</strong>
+          <span id="latestGeneratedAt">自動更新データ読込中</span>
+        </div>
+        <div id="latestFeed" class="latest-feed">
+          <div class="latest-empty">国交省等の国のHP、日経関連、Googleニュース検索から更新情報を確認しています。</div>
+        </div>
+      </section>
+
+      <div id="list" class="list" aria-label="案件一覧"></div>
+    </aside>
+
+    <main>
+      <div id="map" aria-label="正確な日本地図"></div>
+      <div class="map-head">
+        <div class="update">
+          <strong>地図: OpenStreetMap実座標</strong><br>
+          地図案件は確認済み資料を優先。最新情報はGitHub Actionsで6時間ごとに自動収集。表示更新: <span id="updatedAt"></span>
+        </div>
+        <div class="map-actions" aria-label="地図操作">
+          <button id="reset" type="button">日本全体</button>
+        </div>
+      </div>
+      <section id="detail" class="detail" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const WATER_SOURCE_DATE = "添付Excel「水の官民連携」参考事例集（更新日: 2026年3月26日）";
+    const GUNMANE_SOURCE_DATE = "国土交通省「群マネの手引きVer.1」（2025年10月）";
+    const GUNMANE_PDF = "https://www.mlit.go.jp/sogoseisaku/maintenance/_pdf/gunmane_tebiki_honpen.pdf";
+
+    const projects = [
+      {
+        id: "water-hamamatsu-concession",
+        type: "water",
+        method: "concession",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "静岡県浜松市",
+        area: "下水道",
+        title: "浜松市公共下水道終末処理場（西遠処理区）運営事業",
+        what: "添付資料のコンセッション方式掲載案件。西遠処理区を対象に、公共施設等運営事業として運営・維持管理・改築等を担う。",
+        period: "2018年4月 - 2038年3月（20年間）",
+        operator: "浜松ウォーターシンフォニー㈱",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 34.7108,
+        lon: 137.7261,
+        sources: [
+          ["募集要項", "https://www.city.hamamatsu.shizuoka.jp/documents/72205/bosyuuyoukou20161130.pdf"],
+          ["掲載元", "https://www.city.hamamatsu.shizuoka.jp/g-sisetu/gesui/seien/koubo.html"]
+        ]
+      },
+      {
+        id: "water-susaki-concession",
+        type: "water",
+        method: "concession",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "高知県須崎市",
+        area: "下水道",
+        title: "須崎市公共下水道等運営事業",
+        what: "添付資料のコンセッション方式掲載案件。公共下水道等を対象に、民間事業者が長期に運営するウォーターPPP事例。",
+        period: "2020年4月 - 2039年9月（19.5年間）",
+        operator: "㈱クリンパートナーズ須崎",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 33.4007,
+        lon: 133.2829,
+        sources: [
+          ["募集要項", "https://www.city.susaki.lg.jp/download/?t=LD&id=3767&fid=15536"],
+          ["掲載元", "https://www.city.susaki.lg.jp/life/detail.php?hdnKey=3767"]
+        ]
+      },
+      {
+        id: "water-kumamoto-industrial-concession",
+        type: "water",
+        method: "concession",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "熊本県",
+        area: "工業用水道",
+        title: "熊本県有明・八代工業用水道運営事業",
+        what: "添付資料のコンセッション方式掲載案件。有明・八代の工業用水道を対象とする公共施設等運営事業。",
+        period: "2021年4月 - 2041年3月（20年間）",
+        operator: "ウォーターサークルくまもと㈱",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 32.7898,
+        lon: 130.7417,
+        sources: [
+          ["募集要項", "https://www.pref.kumamoto.jp/uploaded/attachment/113444.pdf"],
+          ["掲載元", "https://www.pref.kumamoto.jp/soshiki/120/51509.html"]
+        ]
+      },
+      {
+        id: "water-miyagi-concession",
+        type: "water",
+        method: "concession",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "宮城県",
+        area: "水道・下水道・工業用水道",
+        title: "宮城県上工下水一体官民連携運営事業（みやぎ型管理運営方式）",
+        what: "添付資料のコンセッション方式掲載案件。上水道、工業用水道、下水道を一体で扱う広域・複数分野のウォーターPPP事例。",
+        period: "2022年4月 - 2042年3月（20年間）",
+        operator: "㈱みずむすびマネジメントみやぎ",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 38.2682,
+        lon: 140.8694,
+        sources: [
+          ["募集要項", "https://www.pref.miyagi.jp/documents/35976/bosyuyoukou.pdf"],
+          ["掲載元", "https://www.pref.miyagi.jp/site/miyagigata/"]
+        ]
+      },
+      {
+        id: "water-osaka-industrial-concession",
+        type: "water",
+        method: "concession",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "大阪府大阪市",
+        area: "工業用水道",
+        title: "大阪市工業用水道特定運営事業等",
+        what: "添付資料のコンセッション方式掲載案件。工業用水道を対象とする特定運営事業。",
+        period: "2022年4月 - 2032年3月（10年間）",
+        operator: "みおつくし工業用水コンセッション㈱",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 34.6937,
+        lon: 135.5023,
+        sources: [
+          ["募集要項", "https://www.city.osaka.lg.jp/suido/cmsfiles/contents/0000517/517668/1bosyuyoukou.pdf"],
+          ["掲載元", "https://www.city.osaka.lg.jp/suido/page/0000517668.html"]
+        ]
+      },
+      {
+        id: "water-miura-concession",
+        type: "water",
+        method: "concession",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "神奈川県三浦市",
+        area: "下水道",
+        title: "三浦市公共下水道（東部処理区）運営事業",
+        what: "添付資料のコンセッション方式掲載案件。東部処理区の公共下水道を対象とする運営事業。",
+        period: "2023年4月 - 2043年3月（20年間）",
+        operator: "三浦下水道コンセッション㈱",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 35.1441,
+        lon: 139.6207,
+        sources: [
+          ["募集要項", "https://www.city.miura.kanagawa.jp/material/files/group/43/boshuyoko_2.pdf"],
+          ["掲載元", "https://www.city.miura.kanagawa.jp/soshiki/gesuidoka/concession/126.html#jisshikeiyaku"]
+        ]
+      },
+      {
+        id: "water-aichi-toyohashi-concession",
+        type: "water",
+        method: "concession",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "愛知県",
+        area: "水道",
+        title: "豊橋浄水場再整備等事業",
+        what: "添付資料のコンセッション方式掲載案件。豊橋浄水場の再整備等を含む長期の水道事業。",
+        period: "2025年12月 - 2056年3月（30年間）",
+        operator: "AICHIウォーター㈱",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 34.7692,
+        lon: 137.3915,
+        sources: [
+          ["入札説明書", "https://www.pref.aichi.jp/uploaded/attachment/543298.pdf"],
+          ["掲載元", "https://www.pref.aichi.jp/soshiki/kigyo-somu/20241227.html"]
+        ]
+      },
+      {
+        id: "water-ube-concession",
+        type: "water",
+        method: "concession",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "山口県宇部市",
+        area: "下水道",
+        title: "宇部市公共下水道西部処理区運営事業",
+        what: "添付資料のコンセッション方式掲載案件。西部処理区を対象とする下水道ウォーターPPP事例。",
+        period: "2026年4月 - 2056年3月（30年間）",
+        operator: "うべアクアフロント㈱",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 33.9515,
+        lon: 131.2468,
+        sources: [
+          ["募集要項", "https://www.city.ube.yamaguchi.jp/_res/projects/default_project/_page_/001/017/638/1_1bosyuyoukou.pdf"],
+          ["掲載元", "https://www.city.ube.yamaguchi.jp/kurashi/gasgesui/1015032/1017638.html"]
+        ]
+      },
+      {
+        id: "water-hayama-concession",
+        type: "water",
+        method: "concession",
+        status: "open",
+        certainty: "source",
+        statusLabel: "選定中",
+        certaintyLabel: "添付資料確認済み",
+        place: "神奈川県葉山町",
+        area: "下水道",
+        title: "葉山町下水道ウォーターPPP（処理場等施設コンセッション）事業",
+        what: "添付資料のコンセッション方式掲載案件。処理場等施設コンセッションとして事業者選定中。",
+        period: "2027年4月 - 2047年3月（20年間）",
+        operator: "事業者選定中",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 35.272,
+        lon: 139.5867,
+        sources: [
+          ["募集要項", "https://www.town.hayama.lg.jp/material/files/group/12/25100903.pdf"],
+          ["掲載元", "https://www.town.hayama.lg.jp/soshiki/gesui/1_1/9171.html"]
+        ]
+      },
+      {
+        id: "water-moriya-management",
+        type: "water",
+        method: "management",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "茨城県守谷市",
+        area: "水道・下水道",
+        title: "守谷市上下水道施設管理等包括業務委託",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。上下水道施設管理を包括的に委託するウォーターPPP事例。",
+        period: "2023年4月 - 2033年3月（10年間）",
+        operator: "ウォーターエージェンシー・オリエンタルコンサルタンツ・中央設計技術研究所共同企業体",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 35.9515,
+        lon: 139.9754,
+        sources: [
+          ["発注者HPリンク切れ", ""]
+        ]
+      },
+      {
+        id: "water-hakone-management",
+        type: "water",
+        method: "management",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "神奈川県箱根地区",
+        area: "水道",
+        title: "箱根地区水道事業包括委託事業（第3期）",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。箱根地区の水道事業を長期包括委託する。",
+        period: "2023年12月 - 2034年3月（10年間）",
+        operator: "箱根水道パートナーズ",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 35.2324,
+        lon: 139.1069,
+        sources: [
+          ["募集要項", "https://www.pref.kanagawa.jp/documents/99639/boyuuyoko.pdf"],
+          ["掲載元", "https://www.pref.kanagawa.jp/docs/w6a/hakone-houkatsu-koubo.html"]
+        ]
+      },
+      {
+        id: "water-rifu-management",
+        type: "water",
+        method: "management",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "宮城県利府町",
+        area: "水道・下水道",
+        title: "利府町上下水道事業包括的民間委託",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。上下水道事業を対象に管理と更新を一体的に扱う。",
+        period: "2025年4月 - 2036年3月（10年間）",
+        operator: "㈱Rifレックス",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 38.3301,
+        lon: 140.976,
+        sources: [
+          ["募集要項", "https://www.town.rifu.miyagi.jp/material/files/group/53/2_bosyuuyoukou.pdf"],
+          ["掲載元", "https://www.town.rifu.miyagi.jp/gyosei/soshikikarasagasu/jougesuidou/keiei/6239.html"]
+        ]
+      },
+      {
+        id: "water-shizuoka-fujisan-management",
+        type: "water",
+        method: "management",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "静岡県",
+        area: "工業用水道",
+        title: "ふじさん工業用水道事業 新ポンプ場整備を伴う包括民間委託事業",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。新ポンプ場整備を伴う更新支援型の包括民間委託。",
+        period: "2025年4月 - 2031年3月（5年間）",
+        operator: "東駿河湾グループ",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 35.1614,
+        lon: 138.6763,
+        sources: [
+          ["入札説明書", "https://www.pref.shizuoka.jp/_res/projects/default_project/_page_/001/063/789/02nyuusatusetumeishoshuusei.pdf"],
+          ["掲載元", "https://www.pref.shizuoka.jp/kurashikankyo/suido/kogyoyosui/1040824/1040831/1053488/index.html"]
+        ]
+      },
+      {
+        id: "water-fuji-management",
+        type: "water",
+        method: "management",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "静岡県富士市",
+        area: "下水道",
+        title: "富士市終末処理場管理運転等業務委託（ウォーターPPP）",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。終末処理場の管理運転等を対象とするウォーターPPP。",
+        period: "2026年1月 - 2035年12月（10年間）",
+        operator: "ふじウォーターシナジー",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 35.1614,
+        lon: 138.6863,
+        sources: [
+          ["発注者HPリンク切れ", ""]
+        ]
+      },
+      {
+        id: "water-joyo-management",
+        type: "water",
+        method: "management",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "京都府城陽市",
+        area: "水道・下水道",
+        title: "城陽市水道事業及び下水道事業における包括的民間委託事業",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。上下水道を対象とする包括的民間委託。",
+        period: "2026年4月 - 2036年3月（10年間）",
+        operator: "みずパートナーJOYO共同企業体",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 34.853,
+        lon: 135.7805,
+        sources: [
+          ["募集要項", "https://www.city.joyo.kyoto.jp/cmsfiles/contents/0000010/10455/01_2_bosyuuyoukou_R7.1syuusei.pdf"],
+          ["掲載元", "https://www.city.joyo.kyoto.jp/0000010455.html"]
+        ]
+      },
+      {
+        id: "water-hayama-management",
+        type: "water",
+        method: "management",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "神奈川県葉山町",
+        area: "下水道",
+        title: "葉山町下水道ウォーターPPP（管路施設管理・更新一体マネジメント）事業",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。管路施設を対象に管理と更新を一体的に扱う。",
+        period: "2026年4月 - 2036年3月（10年間）",
+        operator: "葉山アゼリアパイプワークス共同企業体",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 35.267,
+        lon: 139.5917,
+        sources: [
+          ["募集要項", "https://www.town.hayama.lg.jp/material/files/group/12/25060904.pdf"],
+          ["掲載元", "https://www.town.hayama.lg.jp/soshiki/gesui/1_1/9171.html"]
+        ]
+      },
+      {
+        id: "water-ginowan-management",
+        type: "water",
+        method: "management",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "沖縄県宜野湾市",
+        area: "水道・下水道",
+        title: "宜野湾市上下水道事業包括業務委託（第二期）",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。上下水道事業の第二期包括業務委託。",
+        period: "2026年4月 - 2036年3月（10年間）",
+        operator: "ぎのわん水道サービス合同会社",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 26.2816,
+        lon: 127.7785,
+        sources: [
+          ["募集説明書", "https://www.city.ginowan.lg.jp/material/files/group/42/R7bosyuusetumeisyo.pdf"],
+          ["掲載元", "https://www.city.ginowan.lg.jp/soshiki/suido/3/3/18139.html"]
+        ]
+      },
+      {
+        id: "water-arao-management",
+        type: "water",
+        method: "management",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "熊本県荒尾市",
+        area: "水道・下水道",
+        title: "荒尾市水道事業包括委託（第3ステージ）",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。水道事業包括委託を第3ステージとして実施。",
+        period: "2026年4月 - 2036年3月（10年間）",
+        operator: "あらおウォーターサービス㈱",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 32.9868,
+        lon: 130.4339,
+        sources: [
+          ["募集説明書", "https://www.city.arao.lg.jp/fs/2/4/8/2/0/9/_/_____Ver.1.2.pdf"],
+          ["掲載元", "https://www.city.arao.lg.jp/kurashi/suido/jigyo/10380.html"]
+        ]
+      },
+      {
+        id: "water-osakasayama-management",
+        type: "water",
+        method: "management",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "大阪府大阪狭山市",
+        area: "下水道",
+        title: "大阪狭山市公共下水道施設包括的維持管理業務（第3期）",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。公共下水道施設の包括的維持管理業務。",
+        period: "2026年4月 - 2036年3月（10年間）",
+        operator: "南大阪広域下水道サービス",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 34.5037,
+        lon: 135.5557,
+        sources: [
+          ["募集説明書", "https://www.city.osakasayama.osaka.jp/material/files/group/42/1.pdf"],
+          ["掲載元", "https://www.city.osakasayama.osaka.jp/sosiki/mizuseisakubu/gesuidou_suiro/gesuidounotorikumi/1/8615.html"]
+        ]
+      },
+      {
+        id: "water-kawachinagano-management",
+        type: "water",
+        method: "management",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "大阪府河内長野市",
+        area: "下水道",
+        title: "河内長野市下水道施設包括的管理業務",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。南大阪広域下水道サービスによる下水道施設包括管理。",
+        period: "2026年4月 - 2036年3月（10年間）",
+        operator: "南大阪広域下水道サービス",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 34.458,
+        lon: 135.5639,
+        sources: [
+          ["募集説明書", "https://www.city.osakasayama.osaka.jp/material/files/group/42/1.pdf"],
+          ["掲載元", "https://www.city.osakasayama.osaka.jp/sosiki/mizuseisakubu/gesuidou_suiro/gesuidounotorikumi/1/8615.html"]
+        ]
+      },
+      {
+        id: "water-hodatsushimizu-management",
+        type: "water",
+        method: "management",
+        status: "active",
+        certainty: "source",
+        statusLabel: "実施中",
+        certaintyLabel: "添付資料確認済み",
+        place: "石川県宝達志水町",
+        area: "下水道",
+        title: "宝達志水町下水道維持管理包括業務",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。下水道維持管理の包括業務。",
+        period: "2026年4月 - 2036年3月（10年間）",
+        operator: "オレンジかほく・東洋設計共同企業体",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 36.8621,
+        lon: 136.7978,
+        sources: [
+          ["発注者HPリンク切れ", ""]
+        ]
+      },
+      {
+        id: "water-niihama-management",
+        type: "water",
+        method: "management",
+        status: "open",
+        certainty: "source",
+        statusLabel: "選定中",
+        certaintyLabel: "添付資料確認済み",
+        place: "愛媛県新居浜市",
+        area: "水道・下水道・工業用水道",
+        title: "新居浜市上工下水道施設包括委託事業",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。上工下水道施設を対象とし、事業者選定中。",
+        period: "2027年4月 - 2037年3月（10年間）",
+        operator: "事業者選定中",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 33.9603,
+        lon: 133.2834,
+        sources: [
+          ["募集説明書", "https://www.city.niihama.lg.jp/uploaded/life/155348_709261_misc.pdf"],
+          ["掲載元", "https://www.city.niihama.lg.jp/site/niihama-water-ppp/bosyuyoko.html"]
+        ]
+      },
+      {
+        id: "water-iida-management",
+        type: "water",
+        method: "management",
+        status: "open",
+        certainty: "source",
+        statusLabel: "選定中",
+        certaintyLabel: "添付資料確認済み",
+        place: "長野県飯田市",
+        area: "下水道",
+        title: "飯田市下水道処理施設包括的維持管理業務委託",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。下水道処理施設を対象とし、事業者選定中。",
+        period: "2027年4月 - 2037年3月（10年間）",
+        operator: "事業者選定中",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 35.5147,
+        lon: 137.8219,
+        sources: [
+          ["実施要領", "https://www.city.iida.lg.jp/uploaded/attachment/78097.pdf"],
+          ["掲載元", "https://www.city.iida.lg.jp/site/jougesuido/wpppkoubo.html"]
+        ]
+      },
+      {
+        id: "water-itoigawa-management",
+        type: "water",
+        method: "management",
+        status: "open",
+        certainty: "source",
+        statusLabel: "選定中",
+        certaintyLabel: "添付資料確認済み",
+        place: "新潟県糸魚川市",
+        area: "水道・下水道・ガス",
+        title: "糸魚川市ガス事業譲渡及び上下水道事業包括委託",
+        what: "添付資料の管理・更新一体マネジメント方式掲載案件。ガス事業譲渡と上下水道事業包括委託をあわせて事業者選定中。",
+        period: "2027年4月 - 2037年3月（10年間）",
+        operator: "事業者選定中",
+        sourceDate: WATER_SOURCE_DATE,
+        lat: 37.039,
+        lon: 137.8627,
+        sources: [
+          ["募集説明書", "https://www.city.itoigawa.lg.jp/uploaded/attachment/15489.pdf"],
+          ["掲載元", "https://www.city.itoigawa.lg.jp/site/gasusui/17594.html"]
+        ]
+      },
+      {
+        id: "group-mlit-guide",
+        type: "group",
+        method: "gunmane",
+        status: "plan",
+        certainty: "source",
+        statusLabel: "制度/類型",
+        certaintyLabel: "手引き確認済み",
+        place: "全国の自治体・広域圏",
+        area: "道路・橋梁・河川・公園等",
+        title: "地域インフラ群再生戦略マネジメント",
+        what: "群マネの手引きでは、複数自治体や複数分野のインフラを群として捉え、広域連携、多分野連携、プロセスの束などで効率的・効果的にマネジメントする考え方を整理。",
+        period: "手引きVer.1（2025年10月）",
+        operator: "自治体・事業者・技術者等の連携",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 36.2048,
+        lon: 138.7529,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      },
+      {
+        id: "group-nara-bridge",
+        type: "group",
+        method: "gunmane",
+        status: "active",
+        certainty: "source",
+        statusLabel: "先行事例",
+        certaintyLabel: "手引き確認済み",
+        place: "奈良県",
+        area: "橋梁点検・修繕計画",
+        title: "橋梁メンテナンスの垂直連携",
+        what: "群マネの手引き掲載の広域連携事例。県が関与し、市町村橋梁の点検や修繕計画を束ねることで技術支援と発注効率化を図る。",
+        period: "手引き掲載 P11",
+        operator: "奈良県・市町村",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 34.6851,
+        lon: 135.8048,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      },
+      {
+        id: "group-nagano-bridge",
+        type: "group",
+        method: "gunmane",
+        status: "active",
+        certainty: "source",
+        statusLabel: "先行事例",
+        certaintyLabel: "手引き確認済み",
+        place: "長野県下伊那地域",
+        area: "橋梁点検等",
+        title: "下伊那郡土木技術センター組合による共同化",
+        what: "群マネの手引き掲載の広域連携事例。複数町村が組合を通じて橋梁点検等を共同化し、専門性と発注事務を補完する。",
+        period: "手引き掲載 P12",
+        operator: "下伊那郡土木技術センター組合",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 35.5147,
+        lon: 137.8219,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      },
+      {
+        id: "group-shizuoka-shimoda",
+        type: "group",
+        method: "gunmane",
+        status: "active",
+        certainty: "source",
+        statusLabel: "先行事例",
+        certaintyLabel: "手引き確認済み",
+        place: "静岡県・下田市",
+        area: "道路の日常維持管理",
+        title: "県道・市道の日常維持管理連携",
+        what: "群マネの手引き掲載の広域連携事例。県道と市道の日常維持管理を同一事業者に委託し、作業指示をシステムで一元化する。",
+        period: "手引き掲載 P13",
+        operator: "静岡県・下田市・地域維持型JV",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 34.6795,
+        lon: 138.9453,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      },
+      {
+        id: "group-shirakawa-nanto",
+        type: "group",
+        method: "gunmane",
+        status: "active",
+        certainty: "source",
+        statusLabel: "先行事例",
+        certaintyLabel: "手引き確認済み",
+        place: "岐阜県白川村・富山県南砺市",
+        area: "道路除雪",
+        title: "県境を越えた除雪作業連携",
+        what: "群マネの手引き掲載の広域連携事例。県境付近の村道除雪を南砺市へ委託し、空走の非効率を減らす。",
+        period: "手引き掲載 P14",
+        operator: "白川村・南砺市",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 36.43,
+        lon: 136.91,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      },
+      {
+        id: "group-uchinada-kahokugata",
+        type: "group",
+        method: "gunmane",
+        status: "active",
+        certainty: "source",
+        statusLabel: "先行事例",
+        certaintyLabel: "手引き確認済み",
+        place: "石川県内灘町ほか",
+        area: "道路除草・除雪",
+        title: "河北潟干拓地道路協議会",
+        what: "群マネの手引き掲載の広域連携事例。2市2町で協議会を設立し、干拓地内道路の除草・除雪業務を共同発注する。",
+        period: "手引き掲載 P14",
+        operator: "内灘町・金沢市・かほく市・津幡町",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 36.6535,
+        lon: 136.6455,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      },
+      {
+        id: "group-yokkaichi",
+        type: "group",
+        method: "gunmane",
+        status: "active",
+        certainty: "source",
+        statusLabel: "先行事例",
+        certaintyLabel: "手引き確認済み",
+        place: "三重県四日市市",
+        area: "道路・河川の日常維持管理",
+        title: "道路＋河川の包括管理",
+        what: "群マネの手引き掲載の多分野連携事例。道路維持課と河川排水課にまたがる道路・河川水路維持を地域ごとのJVで包括管理する。",
+        period: "手引き掲載 P15",
+        operator: "四日市市・地域維持型JV",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 34.965,
+        lon: 136.624,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      },
+      {
+        id: "group-odate",
+        type: "group",
+        method: "gunmane",
+        status: "active",
+        certainty: "source",
+        statusLabel: "先行事例",
+        certaintyLabel: "手引き確認済み",
+        place: "秋田県大館市",
+        area: "道路・河川の日常維持管理",
+        title: "大館南地域の地域維持型JV",
+        what: "群マネの手引き掲載の多分野連携事例。地元業者のJV内で特殊車両や機材を融通し、道路・河川の維持作業を効率化する。",
+        period: "手引き掲載 P15",
+        operator: "大館市・地域維持型JV",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 40.2714,
+        lon: 140.5643,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      },
+      {
+        id: "group-meiwa",
+        type: "group",
+        method: "gunmane",
+        status: "active",
+        certainty: "source",
+        statusLabel: "先行事例",
+        certaintyLabel: "手引き確認済み",
+        place: "三重県明和町",
+        area: "道路・河川・公園の日常維持管理",
+        title: "町全域の包括的民間委託",
+        what: "群マネの手引き掲載の多分野連携事例。町外業者がマネジメントや窓口業務を担い、町内業者が維持作業で活躍する体制。",
+        period: "手引き掲載 P16",
+        operator: "明和町・JV・町内事業者",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 34.548,
+        lon: 136.623,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      },
+      {
+        id: "group-sanjo",
+        type: "group",
+        method: "gunmane",
+        status: "active",
+        certainty: "source",
+        statusLabel: "先行事例",
+        certaintyLabel: "手引き確認済み",
+        place: "新潟県三条市",
+        area: "道路・公園の日常維持管理",
+        title: "嵐北・大島地区の包括管理",
+        what: "群マネの手引き掲載の多分野連携事例。市外コンサルが補修履歴や要望データを分析し、地元業者JVを支援する。",
+        period: "手引き掲載 P16",
+        operator: "三条市・市外コンサル・地元業者JV",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 37.6368,
+        lon: 138.9617,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      },
+      {
+        id: "group-tochigi",
+        type: "group",
+        method: "gunmane",
+        status: "active",
+        certainty: "source",
+        statusLabel: "先行事例",
+        certaintyLabel: "手引き確認済み",
+        place: "栃木県",
+        area: "道路・河川・砂防の日常維持管理",
+        title: "県内土木事務所の事業協同組合委託",
+        what: "群マネの手引き掲載の多分野連携事例。建設業協同組合へ包括委託し、地区を越えた資機材融通や複数箇所まとめ施工につなげる。",
+        period: "手引き掲載 P17",
+        operator: "栃木県・建設業協同組合",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 36.5657,
+        lon: 139.8836,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      },
+      {
+        id: "group-fukushima",
+        type: "group",
+        method: "gunmane",
+        status: "active",
+        certainty: "source",
+        statusLabel: "先行事例",
+        certaintyLabel: "手引き確認済み",
+        place: "福島県宮下土木管内",
+        area: "道路・河川・砂防の日常維持管理",
+        title: "中山間地域の事業協同組合委託",
+        what: "群マネの手引き掲載の多分野連携事例。中山間地域で地元建設業者が組合を通じて維持管理を分担する。",
+        period: "手引き掲載 P17",
+        operator: "福島県・建設業協同組合",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 37.456,
+        lon: 139.644,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      },
+      {
+        id: "group-tama",
+        type: "group",
+        method: "gunmane",
+        status: "active",
+        certainty: "source",
+        statusLabel: "先行事例",
+        certaintyLabel: "手引き確認済み",
+        place: "東京都多摩市",
+        area: "橋梁点検・計画・補修設計",
+        title: "橋梁メンテナンスのプロセス連携",
+        what: "群マネの手引き掲載のプロセスの束事例。同一業者が5年単位で橋梁点検・診断等を担い、点検結果を維持工事へ迅速に共有する。",
+        period: "手引き掲載 P18",
+        operator: "多摩市・建設コンサルタント・建設会社",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 35.6372,
+        lon: 139.4463,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      },
+      {
+        id: "group-tawaramoto",
+        type: "group",
+        method: "gunmane",
+        status: "active",
+        certainty: "source",
+        statusLabel: "先行事例",
+        certaintyLabel: "手引き確認済み",
+        place: "奈良県田原本町",
+        area: "橋梁点検・補修設計・施工",
+        title: "橋梁修繕の三者協議プロセス連携",
+        what: "群マネの手引き掲載のプロセスの束事例。設計コンサルタントがCMRとして監理し、発注者・施工者との協議で手戻りを減らす。",
+        period: "手引き掲載 P18",
+        operator: "田原本町・建設コンサルタント・建設会社",
+        sourceDate: GUNMANE_SOURCE_DATE,
+        lat: 34.5566,
+        lon: 135.7946,
+        sources: [
+          ["国土交通省 群マネの手引きVer.1", GUNMANE_PDF]
+        ]
+      }
+    ];
+
+    const typeLabel = { water: "ウォーターPPP", group: "群マネ" };
+    const methodLabel = {
+      concession: "コンセッション方式",
+      management: "管理・更新一体マネジメント方式",
+      gunmane: "群マネ/包括管理"
+    };
+    const statusClass = { active: "active", open: "open", plan: "plan" };
+    const typeClass = { water: "water", group: "group" };
+    const methodClass = { concession: "concession", management: "management", gunmane: "gunmane" };
+    const japanBounds = L.latLngBounds([24.0, 122.0], [46.8, 146.5]);
+    const map = L.map("map", {
+      zoomControl: true,
+      minZoom: 4,
+      maxZoom: 18,
+      zoomAnimation: false,
+      fadeAnimation: false
+    });
+    const markers = new Map();
+    let selectedId = projects[0].id;
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    function fitJapan() {
+      map.invalidateSize();
+      map.fitBounds(japanBounds, { padding: [28, 28] });
+    }
+
+    fitJapan();
+    window.addEventListener("resize", () => {
+      window.clearTimeout(window.__fitJapanTimer);
+      window.__fitJapanTimer = window.setTimeout(() => map.invalidateSize(), 120);
+    });
+
+    const listEl = document.getElementById("list");
+    const detailEl = document.getElementById("detail");
+    const filterWater = document.getElementById("filterWater");
+    const filterGroup = document.getElementById("filterGroup");
+    const methodFilters = {
+      concession: document.getElementById("filterConcession"),
+      management: document.getElementById("filterManagement"),
+      gunmane: document.getElementById("filterGunmane")
+    };
+    const search = document.getElementById("search");
+    const countAll = document.getElementById("countAll");
+    const countOpen = document.getElementById("countOpen");
+    const countPlan = document.getElementById("countPlan");
+    const updatedAt = document.getElementById("updatedAt");
+    const latestFeed = document.getElementById("latestFeed");
+    const latestGeneratedAt = document.getElementById("latestGeneratedAt");
+
+    function markerIcon(project) {
+      return L.divIcon({
+        className: "",
+        html: `<span class="pin ${typeClass[project.type]} ${statusClass[project.status]}"></span>`,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+        popupAnchor: [0, -12]
+      });
+    }
+
+    function popupHtml(project) {
+      return `
+        <div class="popup-kind">${typeLabel[project.type]} / ${methodLabel[project.method]} / ${project.statusLabel}</div>
+        <div class="popup-title">${project.place}</div>
+        <div class="popup-row">
+          <span>内容</span><span>${project.title}</span>
+          <span>方式</span><span>${methodLabel[project.method]}</span>
+          <span>対象</span><span>${project.area}</span>
+          <span>期間</span><span>${project.period}</span>
+        </div>
+      `;
+    }
+
+    function visibleProjects() {
+      const q = search.value.trim().toLowerCase();
+      return projects.filter(project => {
+        const typeOn = (project.type === "water" && filterWater.checked) || (project.type === "group" && filterGroup.checked);
+        const methodOn = methodFilters[project.method]?.checked ?? true;
+        const text = `${project.place} ${project.area} ${project.title} ${project.what} ${project.operator} ${project.period} ${project.statusLabel} ${project.certaintyLabel} ${typeLabel[project.type]} ${methodLabel[project.method]} ${project.sourceDate}`.toLowerCase();
+        return typeOn && methodOn && (!q || text.includes(q));
+      });
+    }
+
+    function syncMarkers(visible) {
+      const visibleIds = new Set(visible.map(project => project.id));
+
+      projects.forEach(project => {
+        if (!visibleIds.has(project.id) && markers.has(project.id)) {
+          map.removeLayer(markers.get(project.id));
+          markers.delete(project.id);
+        }
+      });
+
+      visible.forEach(project => {
+        if (markers.has(project.id)) return;
+        const marker = L.marker([project.lat, project.lon], { icon: markerIcon(project) })
+          .bindPopup(popupHtml(project), { closeButton: false })
+          .on("mouseover", () => marker.openPopup())
+          .on("mouseout", () => marker.closePopup())
+          .on("click", () => selectProject(project.id, true));
+        marker.addTo(map);
+        markers.set(project.id, marker);
+      });
+    }
+
+    function renderList(visible) {
+      listEl.innerHTML = "";
+      visible.forEach(project => {
+        const item = document.createElement("button");
+        item.className = `item ${typeClass[project.type]} ${project.id === selectedId ? "selected" : ""}`;
+        item.type = "button";
+        item.innerHTML = `
+          <div class="meta">
+            <span>${typeLabel[project.type]} / ${project.place}</span>
+            <span class="badge ${statusClass[project.status]}">${project.statusLabel}</span>
+          </div>
+          <h2>${project.title}</h2>
+          <p><span class="badge ${methodClass[project.method]}">${methodLabel[project.method]}</span> ${project.period}</p>
+        `;
+        item.addEventListener("click", () => selectProject(project.id, true));
+        listEl.appendChild(item);
+      });
+    }
+
+    function renderDetail() {
+      const project = projects.find(item => item.id === selectedId);
+      if (!project) {
+        detailEl.innerHTML = `<div class="empty">条件に合う案件がありません。<br>フィルターまたは検索条件を変更してください。</div>`;
+        return;
+      }
+
+      detailEl.innerHTML = `
+        <span class="badge ${statusClass[project.status]}">${project.statusLabel}</span>
+        <span class="badge ${project.certainty}">${project.certaintyLabel}</span>
+        <span class="badge ${methodClass[project.method]}">${methodLabel[project.method]}</span>
+        <h2>${project.place}｜${project.title}</h2>
+        <p>${project.what}</p>
+        <dl>
+          <dt>分類</dt><dd>${typeLabel[project.type]}</dd>
+          <dt>方式</dt><dd>${methodLabel[project.method]}</dd>
+          <dt>場所</dt><dd>${project.place}</dd>
+          <dt>対象</dt><dd>${project.area}</dd>
+          <dt>期間</dt><dd>${project.period}</dd>
+          <dt>受託/連携主体</dt><dd>${project.operator}</dd>
+          <dt>情報基準</dt><dd>${project.sourceDate}</dd>
+        </dl>
+        <strong>詳細情報・出典確認</strong>
+        <div class="sources">
+          ${project.sources.map(([label, url]) => url ? `<a href="${url}" target="_blank" rel="noreferrer"><span>${label}</span><span>開く</span></a>` : `<span class="source-note"><span>${label}</span><span>リンクなし</span></span>`).join("")}
+        </div>
+      `;
+    }
+
+    function render() {
+      const visible = visibleProjects();
+      countAll.textContent = visible.length;
+      countOpen.textContent = visible.filter(item => item.status === "open" || item.status === "active").length;
+      countPlan.textContent = visible.filter(item => item.status === "plan").length;
+
+      if (!visible.some(item => item.id === selectedId)) {
+        selectedId = visible[0]?.id || null;
+      }
+
+      syncMarkers(visible);
+      renderList(visible);
+      renderDetail();
+    }
+
+    function selectProject(id, panToMarker) {
+      selectedId = id;
+      const project = projects.find(item => item.id === id);
+      if (project && panToMarker) {
+        map.setView([project.lat, project.lon], Math.max(map.getZoom(), 8), { animate: true });
+        markers.get(project.id)?.openPopup();
+      }
+      render();
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+      }[char]));
+    }
+
+    function renderLatestUpdates(payload) {
+      const items = Array.isArray(payload?.items) ? payload.items.slice(0, 12) : [];
+      latestGeneratedAt.textContent = payload?.generatedAt
+        ? `更新: ${new Intl.DateTimeFormat("ja-JP", { dateStyle: "short", timeStyle: "short" }).format(new Date(payload.generatedAt))}`
+        : "更新情報なし";
+
+      if (!items.length) {
+        latestFeed.innerHTML = `<div class="latest-empty">自動収集された最新情報はまだありません。</div>`;
+        return;
+      }
+
+      latestFeed.innerHTML = items.map(item => `
+        <a href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">
+          <strong>${escapeHtml(item.title)}</strong>
+          <small>${escapeHtml(item.source)} / ${escapeHtml(formatPublished(item.published))} / ${escapeHtml(item.query || "")}</small>
+        </a>
+      `).join("");
+    }
+
+    function formatPublished(value) {
+      if (!value) return "日付未取得";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return value;
+      return new Intl.DateTimeFormat("ja-JP", { dateStyle: "short", timeStyle: "short" }).format(date);
+    }
+
+    async function loadLatestUpdates() {
+      try {
+        const response = await fetch("data/latest-updates.json", { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        renderLatestUpdates(await response.json());
+      } catch (error) {
+        latestGeneratedAt.textContent = "自動更新データ未取得";
+        latestFeed.innerHTML = `<div class="latest-empty">GitHub Actionsで data/latest-updates.json が生成されると、ここに最新情報が表示されます。</div>`;
+      }
+    }
+
+    document.getElementById("reset").addEventListener("click", () => {
+      fitJapan();
+    });
+    filterWater.addEventListener("change", render);
+    filterGroup.addEventListener("change", render);
+    Object.values(methodFilters).forEach(input => input.addEventListener("change", render));
+    search.addEventListener("input", render);
+
+    const formatter = new Intl.DateTimeFormat("ja-JP", { dateStyle: "medium", timeStyle: "short" });
+    updatedAt.textContent = formatter.format(new Date());
+    setInterval(() => { updatedAt.textContent = formatter.format(new Date()); }, 60000);
+    render();
+    loadLatestUpdates();
+    window.setTimeout(fitJapan, 120);
+  </script>
+</body>
+</html>

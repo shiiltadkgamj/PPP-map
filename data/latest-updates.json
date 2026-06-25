@@ -1,0 +1,7 @@
+{
+  "generatedAt": null,
+  "updatePolicy": "GitHub Actionsで定期実行。初回実行後にGoogle News RSS検索から最新情報が入ります。",
+  "queries": [],
+  "errors": [],
+  "items": []
+}
